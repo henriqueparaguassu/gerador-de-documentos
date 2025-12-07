@@ -85,43 +85,57 @@ export default function PreviewPage() {
           </Link>
         )}
       </Header>
-      <Content style={{ padding: '0 48px', marginTop: 24 }}>
+      <Content style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        {/* Header Actions */}
+        {/* Header Actions */}
+        <div className="w-full max-w-[210mm] flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Preview do Documento</h1>
+          <div className="flex items-center gap-4">
+            <p className="text-lg font-bold text-green-600 m-0">
+              Total: R$ {documentData?.templates?.price?.toFixed(2)}
+            </p>
+            <Button onClick={() => window.print()}>
+              Baixar (PDF)
+            </Button>
+            <Button type="primary" size="large" icon={<LockOutlined />} onClick={handlePayment}>
+              Baixar sem marca d'água
+            </Button>
+          </div>
+        </div>
+
+        <style jsx global>{`
+          .ql-align-center { text-align: center; }
+          .ql-align-right { text-align: right; }
+          .ql-align-justify { text-align: justify; }
+        `}</style>
+
+        {/* A4 Paper Preview */}
         <div
+          className="bg-white shadow-lg relative mx-auto"
           style={{
-            background: colorBgContainer,
-            padding: 24,
-            borderRadius: borderRadiusLG,
-            maxWidth: 800,
-            margin: '0 auto',
-            position: 'relative',
+            width: '210mm',
+            minHeight: '297mm',
+            padding: '20mm',
+            boxSizing: 'border-box',
           }}
         >
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">Preview do Documento</h1>
-            <div className="text-right">
-              <p className="text-lg font-bold text-green-600">
-                Total: R$ {documentData?.templates?.price?.toFixed(2)}
-              </p>
-              <Button type="primary" size="large" icon={<LockOutlined />} onClick={handlePayment}>
-                Pagar e Baixar
-              </Button>
+          {/* Watermark */}
+          <div 
+            className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden z-10"
+          >
+            <div 
+              className="text-gray-200 text-9xl font-bold transform -rotate-45 whitespace-nowrap"
+              style={{ opacity: 0.5 }}
+            >
+              PREVIEW - NÃO PAGO
             </div>
           </div>
 
-          <div className="relative border p-8 min-h-[500px] bg-white shadow-sm">
-            {/* Watermark Overlay */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 overflow-hidden">
-              <div className="transform -rotate-45 text-gray-300 text-9xl font-bold opacity-50 select-none whitespace-nowrap">
-                PREVIEW - NÃO PAGO
-              </div>
-            </div>
-            
-            {/* Document Content */}
-            <div 
-              className="prose max-w-none"
-              dangerouslySetInnerHTML={{ __html: htmlContent }} 
-            />
-          </div>
+          {/* HTML Content */}
+          <div 
+            className="prose max-w-none"
+            dangerouslySetInnerHTML={{ __html: htmlContent }} 
+          />
         </div>
       </Content>
       <Footer style={{ textAlign: 'center' }}>

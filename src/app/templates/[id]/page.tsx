@@ -53,6 +53,8 @@ export default function TemplateDetails() {
       template.fields_config.forEach((field: any) => {
         if (field.type === 'date' && values[field.key]) {
           formattedValues[field.key] = dayjs(values[field.key]).format('DD/MM/YYYY');
+        } else if (field.type === 'monetary' && values[field.key]) {
+           formattedValues[field.key] = values[field.key].toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
       });
 
@@ -123,6 +125,16 @@ export default function TemplateDetails() {
                   inputComponent = <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />;
                 } else if (field.type === 'number') {
                   inputComponent = <InputNumber style={{ width: '100%' }} />;
+                } else if (field.type === 'monetary') {
+                  inputComponent = (
+                    <InputNumber
+                      formatter={(value) => `R$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                      parser={(displayValue) => displayValue?.replace(/R\$\s?|(,*)/g, '') as unknown as number}
+                      style={{ width: '100%' }}
+                      precision={2}
+                      decimalSeparator=","
+                    />
+                  );
                 }
 
                 return (
@@ -130,7 +142,7 @@ export default function TemplateDetails() {
                     key={field.key}
                     label={field.label}
                     name={field.key}
-                    rules={[{ required: true, message: `Por favor insira ${field.label}` }]}
+                    rules={[{ required: field.required ?? true, message: `Por favor insira ${field.label}` }]}
                   >
                     {inputComponent}
                   </Form.Item>

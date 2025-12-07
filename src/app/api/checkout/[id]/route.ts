@@ -25,6 +25,8 @@ export async function POST(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
+    const origin = process.env.NEXT_PUBLIC_APP_URL || 'https://www.google.com';
+
     const preference = new Preference(client);
     const result = await preference.create({
       body: {
@@ -38,9 +40,9 @@ export async function POST(
           },
         ],
         back_urls: {
-          success: `${request.nextUrl.origin}/download/${document.id}?status=success`,
-          failure: `${request.nextUrl.origin}/preview/${document.id}?status=failure`,
-          pending: `${request.nextUrl.origin}/preview/${document.id}?status=pending`,
+          success: `${origin}/download/${document.id}?status=success`,
+          failure: `${origin}/preview/${document.id}?status=failure`,
+          pending: `${origin}/preview/${document.id}?status=pending`,
         },
         auto_return: 'approved',
         external_reference: document.id,

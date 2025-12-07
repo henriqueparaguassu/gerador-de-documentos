@@ -32,6 +32,10 @@ function LoginForm() {
     setLoading(false);
   };
 
+  const toTitleCase = (str: string) => {
+    return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  };
+
   const onRegister = async (values: any) => {
     setLoading(true);
     const { data, error } = await supabase.auth.signUp({
@@ -39,7 +43,7 @@ function LoginForm() {
       password: values.password,
       options: {
         data: {
-          full_name: values.full_name,
+          full_name: toTitleCase(values.full_name),
         },
       },
     });

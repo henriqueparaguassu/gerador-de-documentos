@@ -1,18 +1,19 @@
 "use client";
 
+import Navbar from "@/components/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { FileTextOutlined, LogoutOutlined } from "@ant-design/icons";
+import { FileTextOutlined } from "@ant-design/icons";
 import { Button, Card, Col, Layout, Row, Spin, theme } from "antd";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-const { Header, Content, Footer } = Layout;
+const { Content, Footer } = Layout;
 
 export default function Dashboard() {
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const { signOut, user, isAdmin } = useAuth();
+  const { user } = useAuth();
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
@@ -37,32 +38,9 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <Layout className="min-h-screen">
-      <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div className="text-white text-lg font-bold">Gerador de Documentos</div>
-        <div className="flex items-center gap-4">
-          {user ? (
-            <>
-              {isAdmin && (
-                <Link href="/admin/dashboard">
-                  <Button type="default" ghost className="text-white border-white hover:text-gray-200 hover:border-gray-200">
-                    Admin
-                  </Button>
-                </Link>
-              )}
-              <span className="text-white">Olá, {user.email}</span>
-              <Button type="primary" danger icon={<LogoutOutlined />} onClick={signOut}>
-                Sair
-              </Button>
-            </>
-          ) : (
-            <Link href="/login">
-              <Button type="primary">Entrar</Button>
-            </Link>
-          )}
-        </div>
-      </Header>
-      <Content style={{ padding: '0 48px', marginTop: 24 }}>
+    <Layout className="min-h-screen flex flex-col">
+      <Navbar />
+      <Content style={{ padding: '0 48px', marginTop: 24, flexGrow: 1 }}>
         <div
           style={{
             background: colorBgContainer,

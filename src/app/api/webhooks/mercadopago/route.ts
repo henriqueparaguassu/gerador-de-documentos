@@ -14,14 +14,19 @@ export async function POST(request: NextRequest) {
     const topic = url.searchParams.get('topic') || url.searchParams.get('type');
     const id = url.searchParams.get('id') || url.searchParams.get('data.id');
 
+    console.log(`Webhook received: topic=${topic}, id=${id}`);
+
     if (topic === 'payment' && id) {
       const payment = new Payment(client);
       const paymentData = await payment.get({ id });
+
+      console.log(`Payment status: ${paymentData.status}, External Reference: ${paymentData.external_reference}`);
 
       if (paymentData.status === 'approved') {
         const externalReference = paymentData.external_reference;
         
         if (externalReference) {
+          // Use supabaseServiceKey to bypass RLS
           const { error } = await supabase
             .from('documents')
             .update({ status: 'paid', payment_id: id })
@@ -31,6 +36,7 @@ export async function POST(request: NextRequest) {
             console.error('Error updating document status:', error);
             return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
           }
+          console.log(`Document ${externalReference} marked as paid.`);
         }
       }
     }

@@ -1,18 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
-import Docxtemplater from 'docxtemplater';
-import mammoth from 'mammoth';
 import { NextRequest, NextResponse } from 'next/server';
-import PizZip from 'pizzip';
 
-// Initialize Supabase client (service role needed for storage access if private, but here we use anon key if public or service role if needed)
-// We should use service role to access storage if it's restricted.
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!; 
-// Note: User said they don't know where to find service role key, but I told them. 
-// If they didn't put it in .env.local, this might fail. 
-// But for now let's assume they did or use anon key if storage is public.
-// Actually, I'll use the anon key for now as I don't want to break if they didn't add service key.
-// But wait, I need to download the file.
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
 export async function GET(
@@ -22,10 +12,10 @@ export async function GET(
   const { id } = await params;
 
   try {
-    // 1. Fetch document data
+    // 1. Fetch document data and template HTML
     const { data: document, error: docError } = await supabase
       .from('documents')
-      .select('*, templates(*)')
+      .select('*, templates(html_content, name)')
       .eq('id', id)
       .single();
 
@@ -33,32 +23,24 @@ export async function GET(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    // 2. Download template file
-    const { data: fileData, error: fileError } = await supabase.storage
-      .from('templates')
-      .download(document.templates.file_url);
+    let html = document.templates.html_content;
 
-    if (fileError || !fileData) {
-      return NextResponse.json({ error: 'Template file not found' }, { status: 404 });
+    if (!html) {
+        // Fallback or error if no HTML content (legacy templates?)
+        return NextResponse.json({ error: 'Template has no HTML content' }, { status: 404 });
     }
 
-    // 3. Fill template with data
-    const arrayBuffer = await fileData.arrayBuffer();
-    const zip = new PizZip(arrayBuffer);
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true,
+    // 2. Perform variable substitution
+    // We iterate over the data keys and replace {key} in the HTML
+    const data = document.data || {};
+    
+    // Also replace keys that might be missing with empty string
+    // A regex approach is safer to catch all {key} patterns
+    html = html.replace(/{(\w+)}/g, (match: string, key: string) => {
+      return data[key] !== undefined && data[key] !== null ? data[key] : '';
     });
 
-    doc.render(document.data);
-
-    const filledZip = doc.getZip();
-    const filledContent = filledZip.generate({ type: 'arraybuffer' });
-
-    // 4. Convert to HTML for preview
-    const result = await mammoth.convertToHtml({ arrayBuffer: filledContent });
-    
-    return NextResponse.json({ html: result.value });
+    return NextResponse.json({ html });
 
   } catch (error) {
     console.error('Error generating preview:', error);

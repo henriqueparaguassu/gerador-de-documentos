@@ -31,12 +31,42 @@ export default function AdminTemplates() {
   }, []);
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('templates').delete().eq('id', id);
-    if (error) {
-      message.error('Erro ao excluir template');
-    } else {
+    try {
+      // 1. Get template to check for file
+      const { data: template, error: fetchError } = await supabase
+        .from('templates')
+        .select('file_url')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // 2. Delete file from storage if exists
+      if (template?.file_url) {
+        const { error: storageError } = await supabase.storage
+          .from('templates')
+          .remove([template.file_url]);
+        
+        if (storageError) console.error('Error deleting file:', storageError);
+      }
+
+      // 3. Delete associated documents (Foreign Key Constraint)
+      const { error: docError } = await supabase
+        .from('documents')
+        .delete()
+        .eq('template_id', id);
+
+      if (docError) throw docError;
+
+      // 4. Delete from database
+      const { error } = await supabase.from('templates').delete().eq('id', id);
+      if (error) throw error;
+
       message.success('Template excluído com sucesso');
       fetchTemplates();
+    } catch (error: any) {
+      console.error('Error deleting template:', error);
+      message.error(`Erro ao excluir template: ${error.message || 'Erro desconhecido'}`);
     }
   };
 

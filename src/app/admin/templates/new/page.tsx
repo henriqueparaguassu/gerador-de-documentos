@@ -1,157 +1,212 @@
 "use client";
 
-import AdminLayout from "@/components/AdminLayout";
 import { supabase } from "@/lib/supabase";
-import { MinusCircleOutlined, PlusOutlined, UploadOutlined } from "@ant-design/icons";
-import { Button, Card, Form, Input, InputNumber, Select, Space, Upload } from "antd";
+import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { Button, Card, Checkbox, Form, Input, InputNumber, message, Select, Typography } from "antd";
+import dynamic from 'next/dynamic';
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import 'react-quill-new/dist/quill.snow.css';
 
-export default function NewTemplate() {
-  const [loading, setLoading] = useState(false);
+const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
+
+const { Title, Text } = Typography;
+const { Option } = Select;
+
+export default function NewTemplatePage() {
+  const [uploading, setUploading] = useState(false);
+  const [fields, setFields] = useState<any[]>([]);
+  const [htmlContent, setHtmlContent] = useState('');
   const router = useRouter();
   const [form] = Form.useForm();
 
+  // Extract keys from HTML content
+  useEffect(() => {
+    const regex = /{([a-zA-Z0-9_]+)}/g;
+    const matches = [...htmlContent.matchAll(regex)].map(m => m[1]);
+    const uniqueKeys = Array.from(new Set(matches));
+
+    setFields(prevFields => {
+      const existingKeys = new Set(prevFields.map(f => f.key));
+      const newFields = [...prevFields];
+
+      // Add new keys found in HTML
+      uniqueKeys.forEach(key => {
+        if (!existingKeys.has(key)) {
+          newFields.push({ key, label: key, type: 'text', required: true });
+        }
+      });
+
+      return newFields;
+    });
+  }, [htmlContent]);
+
+  const addField = () => {
+    setFields([...fields, { key: '', label: '', type: 'text', required: true }]);
+  };
+
+  const removeField = (index: number) => {
+    const newFields = [...fields];
+    newFields.splice(index, 1);
+    setFields(newFields);
+  };
+
+  const updateField = (index: number, key: string, value: any) => {
+    const newFields = [...fields];
+    newFields[index][key] = value;
+    setFields(newFields);
+  };
+
   const onFinish = async (values: any) => {
-    setLoading(true);
+    if (!htmlContent) {
+      message.error('Por favor, crie o conteúdo HTML do template.');
+      return;
+    }
+
+    setUploading(true);
     try {
-      const file = values.file[0].originFileObj;
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `templates/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('templates')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
       const { error: dbError } = await supabase
         .from('templates')
         .insert({
           name: values.name,
           description: values.description,
           price: values.price,
-          file_url: filePath,
-          fields_config: values.fields,
+          file_url: null, // No file upload
+          fields_config: fields,
+          html_content: htmlContent,
         });
 
       if (dbError) throw dbError;
 
+      message.success('Template criado com sucesso!');
       router.push('/admin/templates');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating template:', error);
-      alert('Erro ao criar template');
+      message.error(`Erro ao criar template: ${error.message}`);
     } finally {
-      setLoading(false);
+      setUploading(false);
     }
   };
 
+  const modules = useMemo(() => ({
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ 'align': [] }],
+      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+      ['link', 'clean']
+    ],
+  }), []);
+
   return (
-    <AdminLayout>
-      <h1 className="text-2xl font-bold mb-4">Novo Template</h1>
+    <div className="max-w-4xl mx-auto">
+      <Title level={2}>Novo Template</Title>
       <Form
         form={form}
         layout="vertical"
         onFinish={onFinish}
-        autoComplete="off"
+        initialValues={{ price: 0 }}
       >
-        <Form.Item
-          label="Nome do Template"
-          name="name"
-          rules={[{ required: true, message: 'Por favor insira o nome!' }]}
-        >
-          <Input />
-        </Form.Item>
+        <Card title="Informações Básicas" className="mb-6">
+          <Form.Item
+            name="name"
+            label="Nome do Template"
+            rules={[{ required: true, message: 'Por favor insira o nome' }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="description"
+            label="Descrição"
+          >
+            <Input.TextArea rows={3} />
+          </Form.Item>
+          <Form.Item
+            name="price"
+            label="Preço (R$)"
+            rules={[{ required: true, message: 'Por favor insira o preço' }]}
+          >
+            <InputNumber
+              formatter={(value) => `R$ ${value}`.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+              parser={(displayValue) => displayValue?.replace(/R\$\s?|(\.*)/g, '').replace(',', '.') as unknown as number}
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+        </Card>
 
-        <Form.Item
-          label="Descrição"
-          name="description"
-        >
-          <Input.TextArea />
-        </Form.Item>
+        <Card title="Editor Visual (Preview e PDF)" className="mb-6">
+          <Text type="secondary" className="block mb-4">
+            Crie o visual do documento aqui. Use as chaves entre chaves simples, ex: {'{nome_cliente}'}.
+            As chaves serão identificadas automaticamente abaixo.
+          </Text>
+          <div className="h-96 mb-12">
+            <ReactQuill
+              theme="snow"
+              value={htmlContent}
+              onChange={setHtmlContent}
+              modules={modules}
+              style={{ height: '300px' }}
+            />
+          </div>
+        </Card>
 
-        <Form.Item
-          label="Preço (R$)"
-          name="price"
-          rules={[{ required: true, message: 'Por favor insira o preço!' }]}
-        >
-          <InputNumber
-            style={{ width: '100%' }}
-            formatter={value => `R$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-            parser={value => value!.replace(/\R\$\s?|(,*)/g, '')}
-          />
-        </Form.Item>
-
-        <Form.Item
-          label="Arquivo do Template (.docx)"
-          name="file"
-          valuePropName="fileList"
-          getValueFromEvent={(e: any) => {
-            if (Array.isArray(e)) {
-              return e;
-            }
-            return e?.fileList;
-          }}
-          rules={[{ required: true, message: 'Por favor faça upload do arquivo!' }]}
-        >
-          <Upload name="file" maxCount={1} accept=".docx">
-            <Button icon={<UploadOutlined />}>Clique para Upload</Button>
-          </Upload>
-        </Form.Item>
-
-        <Card title="Campos do Formulário" className="mb-4">
-          <Form.List name="fields">
-            {(fields, { add, remove }) => (
-              <>
-                {fields.map(({ key, name, ...restField }) => (
-                  <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'label']}
-                      rules={[{ required: true, message: 'Label obrigatório' }]}
-                    >
-                      <Input placeholder="Label (ex: Nome Completo)" />
-                    </Form.Item>
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'key']}
-                      rules={[{ required: true, message: 'Chave obrigatória' }]}
-                    >
-                      <Input placeholder="Chave (ex: full_name)" />
-                    </Form.Item>
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'type']}
-                      initialValue="text"
-                    >
-                      <Select style={{ width: 120 }}>
-                        <Select.Option value="text">Texto</Select.Option>
-                        <Select.Option value="date">Data</Select.Option>
-                        <Select.Option value="number">Número</Select.Option>
-                        <Select.Option value="cpf">CPF</Select.Option>
-                        <Select.Option value="cnpj">CNPJ</Select.Option>
-                      </Select>
-                    </Form.Item>
-                    <MinusCircleOutlined onClick={() => remove(name)} />
-                  </Space>
-                ))}
-                <Form.Item>
-                  <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                    Adicionar Campo
-                  </Button>
-                </Form.Item>
-              </>
-            )}
-          </Form.List>
+        <Card title="Configuração de Campos" className="mb-6">
+          <Text type="secondary" className="block mb-4">
+            Revise os campos identificados. Ajuste os labels e tipos conforme necessário.
+          </Text>
+          
+          {fields.map((field, index) => (
+            <div key={index} className="flex gap-4 mb-4 items-center">
+              <Input
+                placeholder="Label (ex: Nome Completo)"
+                value={field.label}
+                onChange={(e) => updateField(index, 'label', e.target.value)}
+                style={{ flex: 2 }}
+              />
+              <Input
+                placeholder="Chave"
+                value={field.key}
+                disabled
+                style={{ flex: 1, backgroundColor: '#f5f5f5' }}
+              />
+              <Select
+                value={field.type}
+                onChange={(value) => updateField(index, 'type', value)}
+                style={{ width: 120 }}
+              >
+                <Option value="text">Texto</Option>
+                <Option value="date">Data</Option>
+                <Option value="number">Número</Option>
+                <Option value="monetary">Monetário</Option>
+                <Option value="cpf">CPF</Option>
+                <Option value="cnpj">CNPJ</Option>
+              </Select>
+              <Checkbox
+                checked={field.required}
+                onChange={(e: any) => updateField(index, 'required', e.target.checked)}
+              >
+                Obrigatório
+              </Checkbox>
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => removeField(index)}
+              />
+            </div>
+          ))}
+          
+          <Button type="dashed" onClick={addField} block icon={<PlusOutlined />}>
+            Adicionar Campo Manualmente
+          </Button>
         </Card>
 
         <Form.Item>
-          <Button type="primary" htmlType="submit" loading={loading}>
+          <Button type="primary" htmlType="submit" loading={uploading} block size="large">
             Criar Template
           </Button>
         </Form.Item>
       </Form>
-    </AdminLayout>
+    </div>
   );
 }

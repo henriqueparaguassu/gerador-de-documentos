@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import Docxtemplater from 'docxtemplater';
+import HTMLtoDOCX from 'html-to-docx';
 import { NextRequest, NextResponse } from 'next/server';
-import PizZip from 'pizzip';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -29,27 +28,26 @@ export async function GET(
        return NextResponse.json({ error: 'Payment required' }, { status: 403 });
     }
 
-    const { data: fileData, error: fileError } = await supabase.storage
-      .from('templates')
-      .download(document.templates.file_url);
+    let html = document.templates.html_content;
 
-    if (fileError || !fileData) {
-      return NextResponse.json({ error: 'Template file not found' }, { status: 404 });
+    if (!html) {
+        return NextResponse.json({ error: 'Template has no HTML content' }, { status: 404 });
     }
 
-    const arrayBuffer = await fileData.arrayBuffer();
-    const zip = new PizZip(arrayBuffer);
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true,
+    // Variable substitution
+    const data = document.data || {};
+    html = html.replace(/{(\w+)}/g, (match: string, key: string) => {
+      return data[key] !== undefined && data[key] !== null ? data[key] : '';
     });
 
-    doc.render(document.data);
+    // Generate DOCX
+    const fileBuffer = await HTMLtoDOCX(html, null, {
+      table: { row: { cantSplit: true } },
+      footer: true,
+      pageNumber: true,
+    });
 
-    const filledZip = doc.getZip();
-    const filledContent = filledZip.generate({ type: 'arraybuffer' });
-
-    return new NextResponse(filledContent, {
+    return new NextResponse(new Uint8Array(fileBuffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="${document.templates.name}.docx"`,
