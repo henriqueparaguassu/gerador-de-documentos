@@ -1,18 +1,13 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import {
-    DashboardOutlined,
-    FileOutlined,
-    LogoutOutlined,
-    UserOutlined,
-} from "@ant-design/icons";
-import { Layout, Menu, Spin, theme } from "antd";
+import { ArrowBack, Category, Dashboard, Description, Logout, People } from "@mui/icons-material";
+import { AppBar, Box, CircularProgress, CssBaseline, Divider, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography } from "@mui/material";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-const { Header, Content, Sider } = Layout;
+const drawerWidth = 240;
 
 export default function AdminLayout({
   children,
@@ -22,9 +17,6 @@ export default function AdminLayout({
   const { user, isLoading, isAdmin, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const {
-    token: { colorBgContainer, borderRadiusLG },
-  } = theme.useToken();
 
   useEffect(() => {
     if (!isLoading) {
@@ -38,9 +30,9 @@ export default function AdminLayout({
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <Spin size="large" />
-      </div>
+      <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress size={60} />
+      </Box>
     );
   }
 
@@ -51,54 +43,91 @@ export default function AdminLayout({
   const menuItems = [
     {
       key: "/admin/dashboard",
-      icon: <DashboardOutlined />,
-      label: <Link href="/admin/dashboard">Dashboard</Link>,
+      icon: <Dashboard />,
+      label: "Dashboard",
+      href: "/admin/dashboard",
     },
     {
       key: "/admin/templates",
-      icon: <FileOutlined />,
-      label: <Link href="/admin/templates">Templates</Link>,
+      icon: <Description />,
+      label: "Templates",
+      href: "/admin/templates",
+    },
+    {
+      key: "/admin/categories",
+      icon: <Category />,
+      label: "Categorias",
+      href: "/admin/categories",
     },
     {
       key: "/admin/users",
-      icon: <UserOutlined />,
-      label: <Link href="/admin/users">Usuários</Link>,
-    },
-    {
-      key: "logout",
-      icon: <LogoutOutlined />,
-      label: "Sair",
-      onClick: signOut,
+      icon: <People />,
+      label: "Usuários",
+      href: "/admin/users",
     },
   ];
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>
-      <Sider collapsible>
-        <div className="demo-logo-vertical" />
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[pathname]}
-          items={menuItems}
-        />
-      </Sider>
-      <Layout>
-        <Header style={{ padding: 0, background: colorBgContainer }} />
-        <Content style={{ margin: "0 16px" }}>
-          <div
-            style={{
-              padding: 24,
-              minHeight: 360,
-              background: colorBgContainer,
-              borderRadius: borderRadiusLG,
-              marginTop: 16,
-            }}
-          >
-            {children}
-          </div>
-        </Content>
-      </Layout>
-    </Layout>
+    <Box sx={{ display: 'flex' }}>
+      <CssBaseline />
+      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+        <Toolbar>
+          <Typography variant="h6" noWrap component="div">
+            Admin Panel
+          </Typography>
+        </Toolbar>
+      </AppBar>
+      <Drawer
+        variant="permanent"
+        sx={{
+          width: drawerWidth,
+          flexShrink: 0,
+          [`& .MuiDrawer-paper`]: { width: drawerWidth, boxSizing: 'border-box' },
+        }}
+      >
+        <Toolbar />
+        <Box sx={{ overflow: 'auto' }}>
+          <List>
+            {menuItems.map((item) => (
+              <ListItem key={item.key} disablePadding>
+                <Link href={item.href} passHref style={{ width: '100%', textDecoration: 'none', color: 'inherit' }}>
+                  <ListItemButton selected={pathname === item.href}>
+                    <ListItemIcon>
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText primary={item.label} />
+                  </ListItemButton>
+                </Link>
+              </ListItem>
+            ))}
+          </List>
+          <Divider />
+          <List>
+            <ListItem disablePadding>
+              <Link href="/" passHref style={{ width: '100%', textDecoration: 'none', color: 'inherit' }}>
+                <ListItemButton>
+                  <ListItemIcon>
+                    <ArrowBack />
+                  </ListItemIcon>
+                  <ListItemText primary="Voltar ao Site" />
+                </ListItemButton>
+              </Link>
+            </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton onClick={signOut}>
+                <ListItemIcon>
+                  <Logout />
+                </ListItemIcon>
+                <ListItemText primary="Sair" />
+              </ListItemButton>
+            </ListItem>
+          </List>
+        </Box>
+      </Drawer>
+      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+        <Toolbar />
+        {children}
+      </Box>
+    </Box>
   );
 }

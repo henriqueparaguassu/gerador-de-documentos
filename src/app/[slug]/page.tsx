@@ -1,12 +1,11 @@
 "use client";
 
+import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
-import { Button, Collapse, Layout, theme } from "antd";
+import { ExpandMore } from "@mui/icons-material";
+import { Accordion, AccordionDetails, AccordionSummary, Box, Button, Container, Paper, Typography } from "@mui/material";
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
-
-const { Content, Footer } = Layout;
-const { Panel } = Collapse;
 
 const seoContent: Record<string, {
   title: string;
@@ -84,64 +83,62 @@ export default function SeoPage() {
   const params = useParams();
   const slug = params.slug as string;
   const content = seoContent[slug];
-  const {
-    token: { colorBgContainer, borderRadiusLG },
-  } = theme.useToken();
 
   if (!content) {
     notFound();
   }
 
   return (
-    <Layout className="min-h-screen flex flex-col">
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Navbar />
-      <Content style={{ padding: '0 48px', marginTop: 48, flexGrow: 1 }}>
-        <div className="max-w-4xl mx-auto">
+      <Container component="main" sx={{ flexGrow: 1, py: 8 }}>
+        <Box sx={{ maxWidth: 'md', mx: 'auto' }}>
           {/* Hero Section */}
-          <div className="text-center mb-16">
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-6">
+          <Box sx={{ textAlign: 'center', mb: 8 }}>
+            <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 'bold', color: 'text.primary' }}>
               {content.title}
-            </h1>
-            <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            </Typography>
+            <Typography variant="h6" sx={{ color: 'text.secondary', mb: 4, maxWidth: 'sm', mx: 'auto' }}>
               {content.description}
-            </p>
-            <Link href="/dashboard">
-              <Button type="primary" size="large" className="h-12 px-8 text-lg">
+            </Typography>
+            <Link href="/dashboard" passHref>
+              <Button variant="contained" size="large" sx={{ px: 4, py: 1.5, fontSize: '1.1rem' }}>
                 Gerar Agora
               </Button>
             </Link>
-          </div>
+          </Box>
 
           {/* Explanation Section */}
-          <div 
-            className="mb-12 p-8"
-            style={{
-              background: colorBgContainer,
-              borderRadius: borderRadiusLG,
-            }}
-          >
-            <h2 className="text-2xl font-bold mb-4">O que é?</h2>
-            <p className="text-lg text-gray-700 leading-relaxed">
+          <Paper elevation={0} sx={{ p: 4, mb: 6, bgcolor: 'grey.50', borderRadius: 2 }}>
+            <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold' }}>
+              O que é?
+            </Typography>
+            <Typography variant="body1" sx={{ lineHeight: 1.8, color: 'text.secondary' }}>
               {content.explanation}
-            </p>
-          </div>
+            </Typography>
+          </Paper>
 
           {/* FAQ Section */}
-          <div className="mb-16">
-            <h2 className="text-2xl font-bold mb-6 text-center">Perguntas Frequentes</h2>
-            <Collapse size="large" defaultActiveKey={['0']}>
-              {content.faqs.map((faq, index) => (
-                <Panel header={faq.question} key={index}>
-                  <p>{faq.answer}</p>
-                </Panel>
-              ))}
-            </Collapse>
-          </div>
-        </div>
-      </Content>
-      <Footer style={{ textAlign: 'center' }}>
-        Gerador de Documentos ©{new Date().getFullYear()}
-      </Footer>
-    </Layout>
+          <Box sx={{ mb: 8 }}>
+            <Typography variant="h5" align="center" gutterBottom sx={{ fontWeight: 'bold', mb: 4 }}>
+              Perguntas Frequentes
+            </Typography>
+            {content.faqs.map((faq, index) => (
+              <Accordion key={index} defaultExpanded={index === 0}>
+                <AccordionSummary expandIcon={<ExpandMore />}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>{faq.question}</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Typography variant="body1" color="text.secondary">
+                    {faq.answer}
+                  </Typography>
+                </AccordionDetails>
+              </Accordion>
+            ))}
+          </Box>
+        </Box>
+      </Container>
+      <Footer />
+    </Box>
   );
 }

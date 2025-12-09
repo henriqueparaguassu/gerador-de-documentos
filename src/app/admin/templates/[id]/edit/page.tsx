@@ -3,16 +3,18 @@
 import { useSnackbar } from "@/contexts/SnackbarContext";
 import { supabase } from "@/lib/supabase";
 import { Add, Delete } from "@mui/icons-material";
-import { Box, Button, Card, CardContent, CardHeader, Checkbox, Container, FormControl, FormControlLabel, Grid, IconButton, InputLabel, MenuItem, Select, TextField, Typography } from "@mui/material";
+import { Box, Button, Card, CardContent, CardHeader, Checkbox, CircularProgress, Container, FormControl, FormControlLabel, Grid, IconButton, InputLabel, MenuItem, Select, TextField, Typography } from "@mui/material";
 import dynamic from 'next/dynamic';
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import 'react-quill-new/dist/quill.snow.css';
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
 
-export default function NewTemplatePage() {
-  const [uploading, setUploading] = useState(false);
+export default function EditTemplatePage() {
+  const { id } = useParams();
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [fields, setFields] = useState<any[]>([]);
   const [htmlContent, setHtmlContent] = useState('');
   const router = useRouter();
@@ -60,8 +62,39 @@ export default function NewTemplatePage() {
     }
   }, [categoryId, subcategories]);
 
+  useEffect(() => {
+    const fetchTemplate = async () => {
+      if (!id) return;
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('templates')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching template:', error);
+        showSnackbar('Erro ao carregar template', 'error');
+        router.push('/admin/templates');
+      } else {
+        setName(data.name);
+        setDescription(data.description || '');
+        setPrice(data.price.toString());
+        setFields(data.fields_config || []);
+        setHtmlContent(data.html_content || '');
+        setCategoryId(data.category_id || '');
+        setSubcategoryId(data.subcategory_id || '');
+      }
+      setLoading(false);
+    };
+
+    fetchTemplate();
+  }, [id, router]);
+
   // Extract keys from HTML content
   useEffect(() => {
+    if (!htmlContent) return;
+    
     const regex = /{([a-zA-Z0-9_]+)}/g;
     const matches = [...htmlContent.matchAll(regex)].map(m => m[1]);
     const uniqueKeys = Array.from(new Set(matches));
@@ -104,30 +137,31 @@ export default function NewTemplatePage() {
       return;
     }
 
-    setUploading(true);
+    setSubmitting(true);
     try {
       const { error: dbError } = await supabase
         .from('templates')
-        .insert({
+        .update({
           name,
           description,
           price: parseFloat(price.replace(',', '.')),
-          file_url: null, // No file upload
           fields_config: fields,
           html_content: htmlContent,
           category_id: categoryId || null,
           subcategory_id: subcategoryId || null,
-        });
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
 
       if (dbError) throw dbError;
 
-      showSnackbar('Template criado com sucesso!', 'success');
+      showSnackbar('Template atualizado com sucesso!', 'success');
       router.push('/admin/templates');
     } catch (error: any) {
-      console.error('Error creating template:', error);
-      showSnackbar(`Erro ao criar template: ${error.message}`, 'error');
+      console.error('Error updating template:', error);
+      showSnackbar(`Erro ao atualizar template: ${error.message}`, 'error');
     } finally {
-      setUploading(false);
+      setSubmitting(false);
     }
   };
 
@@ -141,10 +175,18 @@ export default function NewTemplatePage() {
     ],
   }), []);
 
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress size={60} />
+      </Box>
+    );
+  }
+
   return (
     <Container maxWidth="md">
       <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 'bold', mb: 4 }}>
-        Novo Template
+        Editar Template
       </Typography>
       <Box component="form" onSubmit={handleSubmit} noValidate>
         <Card sx={{ mb: 4 }}>
@@ -303,10 +345,10 @@ export default function NewTemplatePage() {
           variant="contained" 
           size="large" 
           fullWidth 
-          disabled={uploading}
+          disabled={submitting}
           sx={{ mb: 8 }}
         >
-          {uploading ? 'Criando...' : 'Criar Template'}
+          {submitting ? 'Salvando...' : 'Salvar Alterações'}
         </Button>
       </Box>
     </Container>

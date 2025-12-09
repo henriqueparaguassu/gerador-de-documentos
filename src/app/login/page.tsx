@@ -1,57 +1,71 @@
 "use client";
 
+import { useSnackbar } from "@/contexts/SnackbarContext";
 import { supabase } from "@/lib/supabase";
-import { LockOutlined, MailOutlined, UserOutlined } from "@ant-design/icons";
-import { Button, Card, Form, Input, Layout, message, Tabs, theme } from "antd";
+import { Email, Lock, Person } from "@mui/icons-material";
+import { Box, Button, Card, Container, InputAdornment, Tab, Tabs, TextField, Typography } from "@mui/material";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
-const { Content, Footer } = Layout;
-
-function LoginForm() {
-  const [loading, setLoading] = useState(false);
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get('returnUrl') || '/dashboard';
-  const {
-    token: { colorBgContainer, borderRadiusLG },
-  } = theme.useToken();
+  const { showSnackbar } = useSnackbar();
 
-  const onLogin = async (values: any) => {
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: values.email,
-      password: values.password,
-    });
+  // Login State
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
 
-    if (error) {
-      message.error(error.message);
-    } else {
-      router.push(returnUrl);
-    }
-    setLoading(false);
+  // Register State
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [registerName, setRegisterName] = useState('');
+
+  const [loading, setLoading] = useState(false);
+  const [tabValue, setTabValue] = useState(0);
+
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
   };
 
   const toTitleCase = (str: string) => {
     return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
-  const onRegister = async (values: any) => {
+  const onLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: loginEmail,
+      password: loginPassword,
+    });
+
+    if (error) {
+      showSnackbar(error.message, 'error');
+    } else {
+      router.push(returnUrl);
+    }
+    setLoading(false);
+  };
+
+  const onRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
     const { data, error } = await supabase.auth.signUp({
-      email: values.email,
-      password: values.password,
+      email: registerEmail,
+      password: registerPassword,
       options: {
         data: {
-          full_name: toTitleCase(values.full_name),
+          full_name: toTitleCase(registerName),
         },
       },
     });
 
     if (error) {
-      message.error(error.message);
+      showSnackbar(error.message, 'error');
     } else {
-      message.success("Cadastro realizado! Verifique seu email ou faça login.");
+      showSnackbar('Cadastro realizado! Verifique seu email ou faça login.', 'success');
       if (data.session) {
         router.push(returnUrl);
       }
@@ -59,105 +73,153 @@ function LoginForm() {
     setLoading(false);
   };
 
-  const items = [
-    {
-      key: "login",
-      label: "Entrar",
-      children: (
-        <Form
-          name="login"
-          onFinish={onLogin}
-          layout="vertical"
-          size="large"
-        >
-          <Form.Item
-            name="email"
-            rules={[{ required: true, message: "Por favor insira seu email!" }]}
-          >
-            <Input prefix={<MailOutlined />} placeholder="Email" />
-          </Form.Item>
-          <Form.Item
-            name="password"
-            rules={[{ required: true, message: "Por favor insira sua senha!" }]}
-          >
-            <Input.Password prefix={<LockOutlined />} placeholder="Senha" />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" block loading={loading}>
-              Entrar
-            </Button>
-          </Form.Item>
-        </Form>
-      ),
-    },
-    {
-      key: "register",
-      label: "Cadastrar",
-      children: (
-        <Form
-          name="register"
-          onFinish={onRegister}
-          layout="vertical"
-          size="large"
-        >
-          <Form.Item
-            name="full_name"
-            rules={[{ required: true, message: "Por favor insira seu nome!" }]}
-          >
-            <Input prefix={<UserOutlined />} placeholder="Nome Completo" />
-          </Form.Item>
-          <Form.Item
-            name="email"
-            rules={[{ required: true, message: "Por favor insira seu email!" }]}
-          >
-            <Input prefix={<MailOutlined />} placeholder="Email" />
-          </Form.Item>
-          <Form.Item
-            name="password"
-            rules={[{ required: true, message: "Por favor insira sua senha!" }]}
-          >
-            <Input.Password prefix={<LockOutlined />} placeholder="Senha" />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" block loading={loading}>
-              Cadastrar
-            </Button>
-          </Form.Item>
-        </Form>
-      ),
-    },
-  ];
-
   return (
-    <Layout className="min-h-screen bg-gray-50">
-      <Content className="flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-800 mb-2">Gerador de Documentos</h1>
-            <p className="text-gray-600">Faça login para continuar</p>
-          </div>
-          
-          <Card
-            style={{
-              borderRadius: borderRadiusLG,
-              boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-            }}
-          >
-            <Tabs defaultActiveKey="login" items={items} centered />
+    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'grey.50' }}>
+      <Container component="main" maxWidth="xs" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Box sx={{ width: '100%' }}>
+          <Card sx={{ p: 4, boxShadow: 3 }}>
+            <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ fontWeight: 'bold', mb: 3 }}>
+              Gerador de Documentos
+            </Typography>
+
+            <Tabs value={tabValue} onChange={handleTabChange} variant="fullWidth" sx={{ mb: 3 }}>
+              <Tab label="Entrar" />
+              <Tab label="Cadastrar" />
+            </Tabs>
+
+            {/* Login Form */}
+            {tabValue === 0 && (
+              <Box component="form" onSubmit={onLogin} noValidate>
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  id="email"
+                  label="Email"
+                  name="email"
+                  autoComplete="email"
+                  autoFocus
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Email color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  name="password"
+                  label="Senha"
+                  type="password"
+                  id="password"
+                  autoComplete="current-password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Lock color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="contained"
+                  sx={{ mt: 3, mb: 2 }}
+                  disabled={loading}
+                >
+                  {loading ? 'Entrando...' : 'Entrar'}
+                </Button>
+              </Box>
+            )}
+
+            {/* Register Form */}
+            {tabValue === 1 && (
+              <Box component="form" onSubmit={onRegister} noValidate>
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  id="full_name"
+                  label="Nome Completo"
+                  name="full_name"
+                  autoFocus
+                  value={registerName}
+                  onChange={(e) => setRegisterName(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Person color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  id="register-email"
+                  label="Email"
+                  name="email"
+                  autoComplete="email"
+                  value={registerEmail}
+                  onChange={(e) => setRegisterEmail(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Email color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  name="password"
+                  label="Senha"
+                  type="password"
+                  id="register-password"
+                  autoComplete="new-password"
+                  value={registerPassword}
+                  onChange={(e) => setRegisterPassword(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Lock color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="contained"
+                  sx={{ mt: 3, mb: 2 }}
+                  disabled={loading}
+                >
+                  {loading ? 'Cadastrando...' : 'Cadastrar'}
+                </Button>
+              </Box>
+            )}
           </Card>
-        </div>
-      </Content>
-      <Footer style={{ textAlign: 'center' }}>
-        Gerador de Documentos ©{new Date().getFullYear()}
-      </Footer>
-    </Layout>
+        </Box>
+      </Container>
+    </Box>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div>Carregando...</div>}>
-      <LoginForm />
+    <Suspense fallback={<Box sx={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center' }}>Carregando...</Box>}>
+      <LoginContent />
     </Suspense>
   );
 }

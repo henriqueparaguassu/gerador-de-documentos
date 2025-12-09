@@ -1,25 +1,23 @@
 "use client";
 
+import Footer from "@/components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { ArrowLeftOutlined, LockOutlined } from "@ant-design/icons";
-import { Button, Layout, Spin, message, theme } from "antd";
+import { ArrowBack, Download, Lock } from "@mui/icons-material";
+import { AppBar, Box, Button, CircularProgress, Container, Toolbar, Typography } from "@mui/material";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const { Header, Content, Footer } = Layout;
-
 export default function PreviewPage() {
   const { id } = useParams();
-  const [htmlContent, setHtmlContent] = useState('');
   const [loading, setLoading] = useState(true);
+  const [pdfLoading, setPdfLoading] = useState(true);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [documentData, setDocumentData] = useState<any>(null);
+  const [downloading, setDownloading] = useState(false);
   const { user } = useAuth();
   const router = useRouter();
-  const {
-    token: { colorBgContainer, borderRadiusLG },
-  } = theme.useToken();
 
   useEffect(() => {
     const fetchPreview = async () => {
@@ -34,24 +32,15 @@ export default function PreviewPage() {
         .single();
       
       if (docError) {
-        message.error('Erro ao carregar documento');
+        alert('Erro ao carregar documento');
         setLoading(false);
         return;
       }
       setDocumentData(doc);
 
-      // Fetch HTML preview
-      try {
-        const res = await fetch(`/api/preview/${id}`);
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-        setHtmlContent(data.html);
-      } catch (error) {
-        console.error('Error fetching preview:', error);
-        message.error('Erro ao gerar preview');
-      } finally {
-        setLoading(false);
-      }
+      // Generate PDF URL for preview (inline viewing)
+      setPdfUrl(`/api/pdf-view/${id}`);
+      setLoading(false);
     };
 
     fetchPreview();
@@ -65,82 +54,162 @@ export default function PreviewPage() {
     router.push(`/checkout/${id}`);
   };
 
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      // Call server-side PDF generation API
+      const response = await fetch(`/api/pdf/${id}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      // Create blob from response
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `documento-${id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      alert('Erro ao gerar PDF. Tente novamente.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <Spin size="large" />
-      </div>
+      <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress size={60} />
+      </Box>
     );
   }
 
   return (
-    <Layout className="min-h-screen">
-      <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Link href="/dashboard" className="text-white hover:text-gray-300 flex items-center gap-2">
-          <ArrowLeftOutlined /> Voltar
-        </Link>
-        {!user && (
-          <Link href={`/login?returnUrl=/preview/${id}`}>
-            <Button type="primary">Entrar</Button>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'grey.100' }}>
+      <AppBar position="static" sx={{ bgcolor: '#001529' }}>
+        <Toolbar sx={{ justifyContent: 'space-between' }}>
+          <Link href="/dashboard" passHref style={{ textDecoration: 'none', color: 'white', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ArrowBack /> 
+            <Typography variant="button" color="inherit">Voltar</Typography>
           </Link>
-        )}
-      </Header>
-      <Content style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          {!user && (
+            <Link href={`/login?returnUrl=/preview/${id}`} passHref>
+              <Button variant="contained" color="primary">Entrar</Button>
+            </Link>
+          )}
+        </Toolbar>
+      </AppBar>
+
+      <Container component="main" sx={{ flexGrow: 1, py: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         {/* Header Actions */}
-        {/* Header Actions */}
-        <div className="w-full max-w-[210mm] flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Preview do Documento</h1>
-          <div className="flex items-center gap-4">
-            <p className="text-lg font-bold text-green-600 m-0">
+        <Box sx={{ width: '100%', maxWidth: '210mm', mb: 3 }}>
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 3 }}>
+            Preview do Documento
+          </Typography>
+          
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: { xs: 'stretch', sm: 'center' }, justifyContent: 'space-between' }}>
+            <Typography variant="h5" sx={{ color: 'success.main', fontWeight: 'bold' }}>
               Total: R$ {documentData?.templates?.price?.toFixed(2)}
-            </p>
-            <Button onClick={() => window.print()}>
-              Baixar (PDF)
-            </Button>
-            <Button type="primary" size="large" icon={<LockOutlined />} onClick={handlePayment}>
-              Baixar sem marca d'água
-            </Button>
-          </div>
-        </div>
+            </Typography>
+            
+            <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+              <Button 
+                variant="outlined" 
+                size="large"
+                startIcon={downloading ? <CircularProgress size={20} color="inherit" /> : <Download />}
+                onClick={handleDownload}
+                disabled={!pdfUrl || downloading}
+                sx={{ 
+                  borderWidth: 2,
+                  '&:hover': { borderWidth: 2 },
+                  textTransform: 'none',
+                  fontWeight: 600
+                }}
+              >
+                {downloading ? 'Gerando...' : 'Baixar com marca d\'água'}
+              </Button>
+              
+              <Button 
+                variant="contained" 
+                size="large" 
+                startIcon={<Lock />} 
+                onClick={handlePayment}
+                sx={{ 
+                  bgcolor: '#001529',
+                  '&:hover': { bgcolor: '#002d52' },
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  boxShadow: 3
+                }}
+              >
+                Baixar sem marca d'água
+              </Button>
+            </Box>
+          </Box>
+        </Box>
 
-        <style jsx global>{`
-          .ql-align-center { text-align: center; }
-          .ql-align-right { text-align: right; }
-          .ql-align-justify { text-align: justify; }
-        `}</style>
-
-        {/* A4 Paper Preview */}
-        <div
-          className="bg-white shadow-lg relative mx-auto"
-          style={{
-            width: '210mm',
-            minHeight: '297mm',
-            padding: '20mm',
-            boxSizing: 'border-box',
-          }}
-        >
-          {/* Watermark */}
-          <div 
-            className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden z-10"
+        {/* PDF Viewer */}
+        {pdfUrl && (
+          <Box
+            sx={{
+              bgcolor: 'white',
+              boxShadow: 3,
+              position: 'relative',
+              mx: 'auto',
+              width: '100%',
+              maxWidth: '210mm',
+              height: '297mm',
+              overflow: 'hidden',
+              borderRadius: 1,
+            }}
           >
-            <div 
-              className="text-gray-200 text-9xl font-bold transform -rotate-45 whitespace-nowrap"
-              style={{ opacity: 0.5 }}
-            >
-              PREVIEW - NÃO PAGO
-            </div>
-          </div>
-
-          {/* HTML Content */}
-          <div 
-            className="prose max-w-none"
-            dangerouslySetInnerHTML={{ __html: htmlContent }} 
-          />
-        </div>
-      </Content>
-      <Footer style={{ textAlign: 'center' }}>
-        Gerador de Documentos ©{new Date().getFullYear()}
-      </Footer>
-    </Layout>
+            {pdfLoading && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: 'grey.100',
+                  zIndex: 10,
+                }}
+              >
+                <Box sx={{ textAlign: 'center' }}>
+                  <CircularProgress size={60} sx={{ mb: 2 }} />
+                  <Typography variant="h6" color="text.secondary">
+                    Gerando preview...
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+            <iframe
+              src={pdfUrl}
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+              }}
+              title="Preview do Documento"
+              onLoad={() => setPdfLoading(false)}
+            />
+          </Box>
+        )}
+      </Container>
+      <Footer />
+    </Box>
   );
 }

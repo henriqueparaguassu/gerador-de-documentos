@@ -25,7 +25,7 @@ export async function POST(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    const origin = process.env.NEXT_PUBLIC_APP_URL || 'https://www.google.com';
+    const origin = request.nextUrl.origin || process.env.NEXT_PUBLIC_APP_URL || 'https://www.google.com';
 
     const preference = new Preference(client);
     const result = await preference.create({

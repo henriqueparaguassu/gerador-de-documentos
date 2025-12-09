@@ -1,15 +1,19 @@
 "use client";
 
 import AdminLayout from "@/components/AdminLayout";
+import { useSnackbar } from "@/contexts/SnackbarContext";
 import { supabase } from "@/lib/supabase";
-import { PlusOutlined } from "@ant-design/icons";
-import { Button, Popconfirm, Space, Table, message } from "antd";
+import { Add, Delete, Edit } from "@mui/icons-material";
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function AdminTemplates() {
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<string | null>(null);
+  const { showSnackbar } = useSnackbar();
 
   const fetchTemplates = async () => {
     setLoading(true);
@@ -30,8 +34,16 @@ export default function AdminTemplates() {
     fetchTemplates();
   }, []);
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteClick = (id: string) => {
+    setTemplateToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!templateToDelete) return;
+
     try {
+      const id = templateToDelete;
       // 1. Get template to check for file
       const { data: template, error: fetchError } = await supabase
         .from('templates')
@@ -62,50 +74,91 @@ export default function AdminTemplates() {
       const { error } = await supabase.from('templates').delete().eq('id', id);
       if (error) throw error;
 
-      message.success('Template excluído com sucesso');
+      showSnackbar('Template excluído com sucesso', 'success');
       fetchTemplates();
     } catch (error: any) {
       console.error('Error deleting template:', error);
-      message.error(`Erro ao excluir template: ${error.message || 'Erro desconhecido'}`);
+      showSnackbar(`Erro ao excluir template: ${error.message || 'Erro desconhecido'}`, 'error');
+    } finally {
+      setDeleteDialogOpen(false);
+      setTemplateToDelete(null);
     }
   };
 
-  const columns = [
-    {
-      title: 'Nome',
-      dataIndex: 'name',
-      key: 'name',
-    },
-    {
-      title: 'Preço',
-      dataIndex: 'price',
-      key: 'price',
-      render: (price: number) => `R$ ${price.toFixed(2)}`,
-    },
-    {
-      title: 'Ações',
-      key: 'action',
-      render: (_: any, record: any) => (
-        <Space size="middle">
-          <Popconfirm title="Tem certeza?" onConfirm={() => handleDelete(record.id)}>
-            <a className="text-red-500">Excluir</a>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+  const handleCloseDialog = () => {
+    setDeleteDialogOpen(false);
+    setTemplateToDelete(null);
+  };
 
   return (
     <AdminLayout>
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Gerenciar Templates</h1>
-        <Link href="/admin/templates/new">
-          <Button type="primary" icon={<PlusOutlined />}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
+          Gerenciar Templates
+        </Typography>
+        <Link href="/admin/templates/new" passHref>
+          <Button variant="contained" startIcon={<Add />}>
             Novo Template
           </Button>
         </Link>
-      </div>
-      <Table columns={columns} dataSource={templates} rowKey="id" loading={loading} />
+      </Box>
+      
+      <TableContainer component={Paper}>
+        <Table sx={{ minWidth: 650 }} aria-label="simple table">
+          <TableHead>
+            <TableRow>
+              <TableCell>Nome</TableCell>
+              <TableCell>Preço</TableCell>
+              <TableCell align="right">Ações</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {templates.map((row) => (
+              <TableRow
+                key={row.id}
+                sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+              >
+                <TableCell component="th" scope="row">
+                  {row.name}
+                </TableCell>
+                <TableCell>R$ {row.price?.toFixed(2)}</TableCell>
+                <TableCell align="right">
+                  <Link href={`/admin/templates/${row.id}/edit`} passHref>
+                    <IconButton color="primary" sx={{ mr: 1 }}>
+                      <Edit />
+                    </IconButton>
+                  </Link>
+                  <IconButton color="error" onClick={() => handleDeleteClick(row.id)}>
+                    <Delete />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleCloseDialog}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          {"Confirmar exclusão?"}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            Tem certeza que deseja excluir este template? Esta ação não pode ser desfeita.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Cancelar</Button>
+          <Button onClick={handleConfirmDelete} color="error" autoFocus>
+            Excluir
+          </Button>
+        </DialogActions>
+      </Dialog>
     </AdminLayout>
   );
 }

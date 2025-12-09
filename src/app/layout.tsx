@@ -1,30 +1,41 @@
+import ThemeRegistry from "@/components/ThemeRegistry/ThemeRegistry";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { AntdRegistry } from '@ant-design/nextjs-registry';
+import { SnackbarProvider } from "@/contexts/SnackbarContext";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import React from 'react';
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
-  title: "Gerador de Documentos",
-  description: "Gerador de documentos baseado em templates",
+  title: "Document Generator",
+  description: "Generate documents from templates",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <AntdRegistry>
+    <html lang="pt-BR">
+      <body className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
+        <ThemeRegistry>
           <AuthProvider>
-            {children}
+            <SnackbarProvider>
+              {children}
+            </SnackbarProvider>
           </AuthProvider>
-        </AntdRegistry>
+        </ThemeRegistry>
       </body>
     </html>
   );

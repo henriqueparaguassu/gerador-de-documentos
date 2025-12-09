@@ -1,30 +1,40 @@
 "use client";
 
+import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { FileTextOutlined } from "@ant-design/icons";
-import { Button, Card, Col, Layout, Row, Spin, theme } from "antd";
+import { Description } from "@mui/icons-material";
+import { Box, Button, Card, CardActions, CardContent, CardHeader, CircularProgress, Container, Grid, Typography } from "@mui/material";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 
-const { Content, Footer } = Layout;
-
-export default function Dashboard() {
+function DashboardContent() {
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
-  const {
-    token: { colorBgContainer, borderRadiusLG },
-  } = theme.useToken();
+  const searchParams = useSearchParams();
+  const categoryId = searchParams.get('category');
+  const subcategoryId = searchParams.get('subcategory');
 
   useEffect(() => {
     const fetchTemplates = async () => {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('templates')
         .select('*')
         .order('created_at', { ascending: false });
+      
+      if (categoryId) {
+        query = query.eq('category_id', categoryId);
+      }
+      
+      if (subcategoryId) {
+        query = query.eq('subcategory_id', subcategoryId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching templates:', error);
@@ -35,57 +45,72 @@ export default function Dashboard() {
     };
 
     fetchTemplates();
-  }, []);
+  }, [categoryId, subcategoryId]);
 
   return (
-    <Layout className="min-h-screen flex flex-col">
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Navbar />
-      <Content style={{ padding: '0 48px', marginTop: 24, flexGrow: 1 }}>
-        <div
-          style={{
-            background: colorBgContainer,
-            minHeight: 280,
-            padding: 24,
-            borderRadius: borderRadiusLG,
-          }}
-        >
-          <h1 className="text-2xl font-bold mb-6">Modelos Disponíveis</h1>
+      <Container component="main" maxWidth="xl" sx={{ flexGrow: 1, py: 4 }}>
+        <Box sx={{ bgcolor: 'background.paper', p: 4, borderRadius: 2, minHeight: 400, boxShadow: 1 }}>
+          <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 'bold', mb: 4 }}>
+            Modelos Disponíveis
+          </Typography>
           
           {loading ? (
-            <div className="flex justify-center p-12">
-              <Spin size="large" />
-            </div>
+            <Box display="flex" justifyContent="center" p={6}>
+              <CircularProgress size={60} />
+            </Box>
           ) : (
-            <Row gutter={[16, 16]}>
+            <Grid container spacing={3}>
               {templates.map((template) => (
-                <Col xs={24} sm={12} md={8} lg={6} key={template.id}>
-                  <Card
-                    title={template.name}
-                    extra={<FileTextOutlined />}
-                    actions={[
-                      <Link href={`/templates/${template.id}`} key="select">
-                        <Button type="primary" block>
+                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={template.id}>
+                  <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <CardHeader
+                      title={template.name}
+                      titleTypographyProps={{ variant: 'h6' }}
+                      action={<Description color="action" sx={{ alignSelf: 'center' }} />}
+                    />
+                    <CardContent sx={{ flexGrow: 1 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ 
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        height: 40
+                      }}>
+                        {template.description || 'Sem descrição'}
+                      </Typography>
+                      <Typography variant="h6" color="success.main" sx={{ mt: 2, fontWeight: 'bold' }}>
+                        R$ {template.price?.toFixed(2)}
+                      </Typography>
+                    </CardContent>
+                    <CardActions>
+                      <Link href={`/templates/${template.id}`} passHref style={{ width: '100%' }}>
+                        <Button variant="contained" fullWidth>
                           Selecionar
                         </Button>
                       </Link>
-                    ]}
-                  >
-                    <p className="text-gray-500 h-12 overflow-hidden text-ellipsis">
-                      {template.description || 'Sem descrição'}
-                    </p>
-                    <div className="mt-4 font-bold text-lg text-green-600">
-                      R$ {template.price?.toFixed(2)}
-                    </div>
+                    </CardActions>
                   </Card>
-                </Col>
+                </Grid>
               ))}
-            </Row>
+            </Grid>
           )}
-        </div>
-      </Content>
-      <Footer style={{ textAlign: 'center' }}>
-        Gerador de Documentos ©{new Date().getFullYear()}
-      </Footer>
-    </Layout>
+        </Box>
+      </Container>
+      <Footer />
+    </Box>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <Suspense fallback={
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress size={60} />
+      </Box>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }

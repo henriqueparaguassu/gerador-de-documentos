@@ -2,7 +2,7 @@
 
 import AdminLayout from "@/components/AdminLayout";
 import { supabase } from "@/lib/supabase";
-import { Table, Tag } from "antd";
+import { Chip, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 
 export default function AdminUsers() {
@@ -29,34 +29,45 @@ export default function AdminUsers() {
     fetchUsers();
   }, []);
 
-  const columns = [
-    {
-      title: 'Nome',
-      dataIndex: 'full_name',
-      key: 'full_name',
-    },
-    {
-      title: 'Role',
-      dataIndex: 'role',
-      key: 'role',
-      render: (role: string) => (
-        <Tag color={role === 'admin' ? 'red' : 'blue'}>
-          {role.toUpperCase()}
-        </Tag>
-      ),
-    },
-    {
-      title: 'Data de Cadastro',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      render: (date: string) => new Date(date).toLocaleDateString('pt-BR'),
-    },
-  ];
-
   return (
     <AdminLayout>
-      <h1 className="text-2xl font-bold mb-4">Gerenciar Usuários</h1>
-      <Table columns={columns} dataSource={users} rowKey="id" loading={loading} />
+      <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 'bold', mb: 4 }}>
+        Gerenciar Usuários
+      </Typography>
+      
+      <TableContainer component={Paper}>
+        <Table sx={{ minWidth: 650 }} aria-label="simple table">
+          <TableHead>
+            <TableRow>
+              <TableCell>Nome</TableCell>
+              <TableCell>Role</TableCell>
+              <TableCell>Data de Cadastro</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {users.map((row) => (
+              <TableRow
+                key={row.id}
+                sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+              >
+                <TableCell component="th" scope="row">
+                  {row.full_name}
+                </TableCell>
+                <TableCell>
+                  <Chip 
+                    label={row.role.toUpperCase()} 
+                    color={row.role === 'admin' ? 'error' : 'primary'} 
+                    size="small" 
+                  />
+                </TableCell>
+                <TableCell>
+                  {new Date(row.created_at).toLocaleDateString('pt-BR')}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </AdminLayout>
   );
 }

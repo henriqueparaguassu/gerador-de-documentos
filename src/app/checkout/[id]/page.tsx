@@ -1,6 +1,6 @@
 "use client";
 
-import { Spin, message } from "antd";
+import { Box, CircularProgress, Typography } from "@mui/material";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -23,7 +23,7 @@ export default function CheckoutPage() {
         }
       } catch (error) {
         console.error('Error initiating checkout:', error);
-        message.error('Erro ao iniciar pagamento');
+        alert('Erro ao iniciar pagamento');
         router.push(`/preview/${id}`);
       }
     };
@@ -32,9 +32,9 @@ export default function CheckoutPage() {
   }, [id, router]);
 
   return (
-    <div className="flex h-screen items-center justify-center flex-col gap-4">
-      <Spin size="large" />
-      <p>Redirecionando para o Mercado Pago...</p>
-    </div>
+    <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 2 }}>
+      <CircularProgress size={60} />
+      <Typography variant="h6">Redirecionando para o Mercado Pago...</Typography>
+    </Box>
   );
 }
